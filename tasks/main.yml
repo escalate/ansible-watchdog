@@ -1,0 +1,74 @@
+---
+
+- name: Enable bcm2835_wdt kernel module
+  modprobe:
+    name: bcm2835_wdt
+    state: present
+  when: ansible_architecture == 'armv7l'
+  tags:
+    - watchdog
+
+- name: Enable softdog kernel module
+  modprobe:
+    name: softdog
+    state: present
+  when: ansible_architecture != 'armv7l'
+  tags:
+    - watchdog
+
+- name: Install Watchdog packages
+  apt:
+    name: watchdog
+    state: present
+    update_cache: yes
+  tags:
+    - watchdog
+
+- name: Configure Watchdog
+  ini_file:
+    dest: /etc/watchdog.conf
+    section: "{{item.section}}"
+    option: "{{item.option}}"
+    value: "{{item.value}}"
+  with_items:
+    - { section: "", option: "watchdog-device", value: "/dev/watchdog" }
+    - { section: "", option: "watchdog-timeout", value: "15" }
+    - { section: "", option: "admin", value: "root" }
+    - { section: "", option: "interval", value: "1" }
+  notify:
+    - Restart Watchdog service
+  tags:
+    - watchdog
+
+- name: Configure Watchdog defaults
+  copy:
+    src: watchdog
+    dest: /etc/default/watchdog
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - Restart Watchdog service
+  tags:
+    - watchdog
+
+- name: Patch systemd Watchdog service
+  copy:
+    src: watchdog.service
+    dest: /lib/systemd/system/watchdog.service
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - Restart Watchdog service
+  tags:
+    - watchdog
+
+- name: Start Watchdog service
+  systemd:
+    name: watchdog
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  tags:
+    - watchdog

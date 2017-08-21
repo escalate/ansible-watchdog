@@ -1,0 +1,7 @@
+---
+
+- name: Restart Watchdog service
+  systemd:
+    name: watchdog
+    state: restarted
+    daemon_reload: yes
